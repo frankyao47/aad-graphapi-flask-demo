@@ -90,10 +90,27 @@ def get_user():
 @access_token_required
 def add_user():
     if request.method == 'POST':
-        message = _add_user(session['access_token'], request.form)
-        return redirect(url_for('list_user'))
+        return _add_user(session['access_token'], request.form)
     else:
         return render_template('add_user.html')
+
+@app.route('/error', methods=['GET'])
+def display_error():
+    messages = json.loads(request.args['messages'])
+    error_code = messages.get('error_code')
+    error_message = messages.get('error_message')
+    return render_template('error.html', error_code=error_code, error_message=error_message)
+
+
+def _handle_errors(r):
+    errors = r.json().get('odata.error')
+    if errors:
+        error_code = errors.get('code')
+        error_message = errors.get('message').get('value')
+        messages = json.dumps({'error_code': error_code, 'error_message': error_message})
+        return redirect(url_for('display_error', messages=messages))
+    else:
+        return redirect(url_for('list_user'))
 
 def _get_headers(access_token):
     return {
@@ -133,7 +150,8 @@ def _add_user(access_token, form):
     }
 
     r = requests.post(url, headers=headers, data=json.dumps(body))
-    return
+    return _handle_errors(r)
+    
 
 
 if __name__ == '__main__':
