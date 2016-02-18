@@ -1,46 +1,63 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from flask import Flask, render_template, request, abort, jsonify, redirect, session, url_for
-import requests, json
+from flask import Flask, render_template, request, redirect, session, url_for
+import requests, json, jwt
 from functools import wraps
 
-oauth_authorization_url = 'https://login.chinacloudapi.cn/22d9d915-574d-43c7-b985-72aa3a7b979e/oauth2/authorize'
-oauth_token_url = 'https://login.chinacloudapi.cn/22d9d915-574d-43c7-b985-72aa3a7b979e/oauth2/token'
-graph_api_url = 'https://graph.chinacloudapi.cn/22d9d915-574d-43c7-b985-72aa3a7b979e'
+
+oauth_authorization_url = 'https://login.chinacloudapi.cn/common/oauth2/authorize'
+oauth_token_url = 'https://login.chinacloudapi.cn/common/oauth2/token'
+graph_api_url = 'https://graph.chinacloudapi.cn'
+
 client_id = '1a20bd8c-26f7-47de-a4eb-b5570ad94412' #client id
 client_secret = 'MkNxGLVsU2G4Ql3IscDJJkBwxvz+5o74HEh8+vMGfb0=' #key
 reply_url = 'http://localhost:5000/auth' #reply url
-domain_name = 'yaofangjie.partner.mail.onmschina.cn' #register user domain
 
 app = Flask(__name__)
 app.secret_key = '123456'
 
-#oauth authorization
-def get_aad_login_url():
+#######################################functions#########################################
+#reference: https://msdn.microsoft.com/zh-CN/library/azure/dn645542.aspx
+
+#oauth authorization, request code
+def get_oauth_authorization_url(prompt_admin_consent=False):
     params = {
         'url': oauth_authorization_url,
         'response_type': 'code',
         'client_id': client_id, #client_id
         'redirect_uri': reply_url, #reply url
+        'resource': graph_api_url,
+        'prompt': 'login' #personal consent, only affect current user
     }
+    if prompt_admin_consent:
+        params['prompt'] = 'admin_consent' #tenant consent, affect all users in the tenant
 
-    redirect_url = '%(url)s?response_type=%(response_type)s&client_id=%(client_id)s&redirect_uri=%(redirect_uri)s' %params
+    redirect_url = '%(url)s?response_type=%(response_type)s&client_id=%(client_id)s&resource=%(resource)s\
+&redirect_uri=%(redirect_uri)s&prompt=%(prompt)s' %params
     return redirect_url
 
 
-#oauth get access
-def get_access_token_by_code(code):
+#oauth get access token
+def set_oauth_access_token_by_code(code):
     payload = {
         'client_id': client_id,
         'code': code,
         'grant_type': 'authorization_code',
         'redirect_uri': reply_url,
-        'resource': 'https://graph.chinacloudapi.cn',
+        'resource': graph_api_url,
         'client_secret': client_secret
     }
-    r = requests.post(oauth_token_url, data=payload)
-    return r.json().get('access_token', '')
+    oauth_response = requests.post(oauth_token_url, data=payload)
+    oauth_response_json = oauth_response.json()
+
+    session['access_token'] = oauth_response_json.get('access_token') #access_token: app use it to request Web API
+    session['id_token'] = jwt.decode(oauth_response_json.get('id_token'), verify=False) #id_token: login user's info
+    session['refresh_token'] = oauth_response_json.get('refresh_token') #refresh_token: app use it to refresh access token
+    
+    session['tenant_id'] = session['id_token'].get('tid', '')
+    
+    return 
 
 
 #access token is required in session
@@ -54,29 +71,57 @@ def access_token_required(func):
     return __decorator
 
 
+#Http header for web API requests
+def _get_headers(access_token):
+    return {
+        'Authorization': 'Bearer ' + access_token,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+
+
+#graph api
+#reference: https://msdn.microsoft.com/zh-cn/library/azure/ad/graph/api/api-catalog
+def _list_user(access_token, tenant_id):
+    url = graph_api_url + '/%s/users?api-version=1.6' %(tenant_id)
+    headers = _get_headers(access_token)
+
+    response = requests.get(url, headers=headers)
+    return response.json().get('value')
+
+
+def _get_user(access_token):
+    url = graph_api_url + '/me?api-version=1.6'
+    headers = _get_headers(access_token)
+
+    response = requests.get(url, headers=headers)
+    return response.json()
+
+
+
+#######################################route#########################################
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
 
 
+@app.route('/admin_signup', methods=['GET'])
+def admin_signup():
+    redirect_url = get_oauth_authorization_url(prompt_admin_consent=True)
+    return redirect(redirect_url, code=301)
+
+
 @app.route('/login', methods=['GET'])
 def login():
-    redirect_url = get_aad_login_url()
+    redirect_url = get_oauth_authorization_url(prompt_admin_consent=False)
     return redirect(redirect_url, code=301)
 
 
 @app.route('/auth', methods=['GET'])
 def auth():
     code = request.args.get('code', '')
-    session['access_token'] = get_access_token_by_code(code)
-    return redirect(url_for('list_user'))
-
-
-@app.route('/user/list', methods=['GET'])
-@access_token_required
-def list_user():
-    users = _list_user(session['access_token'])
-    return render_template('list_user.html', users=users)
+    set_oauth_access_token_by_code(code)
+    return redirect(url_for('get_user'))
 
 
 @app.route('/user/me', methods=['GET'])
@@ -86,72 +131,11 @@ def get_user():
     return render_template('user.html', user=user)
 
 
-@app.route('/user/add', methods=['GET', 'POST'])
+@app.route('/user/list', methods=['GET'])
 @access_token_required
-def add_user():
-    if request.method == 'POST':
-        return _add_user(session['access_token'], request.form)
-    else:
-        return render_template('add_user.html')
-
-@app.route('/error', methods=['GET'])
-def display_error():
-    messages = json.loads(request.args['messages'])
-    error_code = messages.get('error_code')
-    error_message = messages.get('error_message')
-    return render_template('error.html', error_code=error_code, error_message=error_message)
-
-
-def _handle_errors(r):
-    errors = r.json().get('odata.error')
-    if errors:
-        error_code = errors.get('code')
-        error_message = errors.get('message').get('value')
-        messages = json.dumps({'error_code': error_code, 'error_message': error_message})
-        return redirect(url_for('display_error', messages=messages))
-    else:
-        return redirect(url_for('list_user'))
-
-def _get_headers(access_token):
-    return {
-        'Authorization': 'Bearer ' + access_token,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
-
-def _get_user(access_token):
-    url = graph_api_url + '/me' + '?api-version=1.6'
-    headers = _get_headers(access_token)
-
-    r = requests.get(url, headers=headers)
-    return r.json()
-
-
-def _list_user(access_token):
-    url = graph_api_url + '/users' + '?api-version=1.6'
-    headers = _get_headers(access_token)
-
-    r = requests.get(url, headers=headers)
-    return r.json()['value']
-
-
-def _add_user(access_token, form):
-    url = graph_api_url + '/users' + '?api-version=1.6'
-    headers = _get_headers(access_token)
-    body = {
-        "accountEnabled": "true",
-        "displayName": form.get('displayName', 'Test'),
-        "mailNickname": form.get('userPrincipalName', 'Test'),
-        "passwordProfile": {
-            "password": form.get('password', 'Tes,234'),
-            "forceChangePasswordNextLogin": "false"
-        },
-        "userPrincipalName": form.get('userPrincipalName', 'Test') + "@" + domain_name
-    }
-
-    r = requests.post(url, headers=headers, data=json.dumps(body))
-    return _handle_errors(r)
-    
+def list_users():
+    users = _list_user(session['access_token'], session['tenant_id'])
+    return render_template('list_user.html', users=users)
 
 
 if __name__ == '__main__':

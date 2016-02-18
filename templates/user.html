@@ -4,20 +4,14 @@
     <title>Me</title>
 </head>
 <body>
-    <a href='/user/list'>Back</a>
+    <a href='/user/list'>All users</a>
     <table id="content">
+    {% for key,value in user.items() %}
     <tr>
-        <td>Display Name</td>
-        <td>User Principal Name</td>
-        <td>Object Id</td>
-        <td>Account Enabled</td>
+        <td>{{key}}</td>
+        <td>{{value}}</td>
     </tr>
-    <tr>
-        <td>{{user.displayName}}</td>
-        <td>{{user.userPrincipalName}}</td>
-        <td>{{user.objectId}}</td>
-        <td>{{user.accountEnabled}}</td>
-    </tr>
+    {% endfor %}
     </table>
 </body>
 </html>

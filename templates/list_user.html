@@ -4,21 +4,14 @@
     <title>List User</title>
 </head>
 <body>
-    <a href='/user/add'>Add User</a>
     <a href='/user/me'>My information</a>
     <table id="content">
+    {% for key in users[0].keys() %}
     <tr>
-        <td>Display Name</td>
-        <td>User Principal Name</td>
-        <td>Object Id</td>
-        <td>Account Enabled</td>
-    </tr>
-    {% for user in users %}
-    <tr>
-        <td>{{user.displayName}}</td>
-        <td>{{user.userPrincipalName}}</td>
-        <td>{{user.objectId}}</td>
-        <td>{{user.accountEnabled}}</td>
+        <td>{{key}}</td>
+        {% for user in users %}
+        <td>{{user[key]}}</td>
+        {% endfor %}
     </tr>
     {% endfor %}
     </table>

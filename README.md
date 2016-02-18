@@ -1,2 +1,2 @@
 # aad-graphapi-flask-demo
-Flask demo for graph api usage in azure active directory 
+Flask demo for a multitenant web application that requests graph api access in azure (china) active directory 
