@@ -1,11 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Index</title>
-</head>
-<body>
-    <!-- <a href='/login'><input type='button' value='login'></a> -->
-	<a href='/login'><input type='button' value='login'></a>
-    <a href='/admin_signup'><input type='button' value='admin_signup'></a>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block body %}
+    <h1>Demo</h1>
+    <p class="lead">This sample SaaS web app based on Python Flask uses Oauth2.0 to sign-in users from any Azure AD tenant, and calls the Azure AD Graph API.</p>
+    <p><a href="https://github.com/msopentechcn/aad-graphapi-flask-demo" class="btn btn-primary btn-large">View From Github &raquo;</a></p>
+{% endblock %}

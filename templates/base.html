@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <span class="navbar-brand">Azure Active Directory - Oauth Connect MultiTenant Sample</span>
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li><a href="{{url_for('index')}}">Home</a></li>
+                </ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="{{url_for('signin')}}">Sign In</a></li>
+                    <li><a href="{{url_for('signin_admin')}}">Sign In (Admin)</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        <div class="jumbotron">
+            {% block body %}
+
+            {% endblock %}
+        </div>
+        
+        <footer>
+            <hr />
+            <p>&copy; 2016 - Azure Active Directory</p>
+        </footer>
+    </div>
+
+    {% block js %}
+
+    {% endblock %}
+
+</body>
+</html>

@@ -15,7 +15,7 @@ client_secret = 'MkNxGLVsU2G4Ql3IscDJJkBwxvz+5o74HEh8+vMGfb0=' #key
 reply_url = 'http://localhost:5000/auth' #reply url
 
 app = Flask(__name__)
-app.secret_key = '123456'
+app.secret_key = 'Your should replace it.'
 
 #######################################functions#########################################
 #reference: https://msdn.microsoft.com/zh-CN/library/azure/dn645542.aspx
@@ -105,15 +105,15 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/admin_signup', methods=['GET'])
-def admin_signup():
-    redirect_url = get_oauth_authorization_url(prompt_admin_consent=True)
+@app.route('/signin', methods=['GET'])
+def signin():
+    redirect_url = get_oauth_authorization_url(prompt_admin_consent=False)
     return redirect(redirect_url, code=301)
 
 
-@app.route('/login', methods=['GET'])
-def login():
-    redirect_url = get_oauth_authorization_url(prompt_admin_consent=False)
+@app.route('/signin_admin', methods=['GET'])
+def signin_admin():
+    redirect_url = get_oauth_authorization_url(prompt_admin_consent=True)
     return redirect(redirect_url, code=301)
 
 
